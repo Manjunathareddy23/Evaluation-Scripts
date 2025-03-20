@@ -1,5 +1,5 @@
 import streamlit as st
-import fitz  # PyMuPDF for PDF text extraction
+import PyPDF2  # PyPDF2 for PDF text extraction
 import requests
 import json
 from io import BytesIO
@@ -17,13 +17,13 @@ load_dotenv()
 # Configure the Google Generative AI API with the API key
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# Function to extract text from PDF using PyMuPDF
+# Function to extract text from PDF using PyPDF2
 def extract_pdf_text(pdf_file):
     try:
-        doc = fitz.open(pdf_file)
+        reader = PyPDF2.PdfReader(pdf_file)
         text = ""
-        for page in doc:
-            text += page.get_text()
+        for page in reader.pages:
+            text += page.extract_text()
         return text
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
@@ -33,11 +33,11 @@ def extract_pdf_text(pdf_file):
 def extract_text_with_ocr(pdf_file):
     try:
         # Convert the first page of the PDF to an image
-        doc = fitz.open(pdf_file)
-        page = doc[0]  # Assuming we want the first page only
-        pix = page.get_pixmap()
-        img = Image.open(io.BytesIO(pix.tobytes()))
-
+        reader = PyPDF2.PdfReader(pdf_file)
+        page = reader.pages[0]
+        pix = page.extract_text()
+        img = Image.open(io.BytesIO(pix))
+        
         # Perform OCR on the image to extract text
         text = pytesseract.image_to_string(img)
         return text
