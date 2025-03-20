@@ -1,8 +1,7 @@
-#requirements
-
 streamlit
-fitz
+PyPDF2
 requests
+json
 fpdf
 python-dotenv
 pytesseract
