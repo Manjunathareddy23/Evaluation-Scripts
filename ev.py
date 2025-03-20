@@ -23,9 +23,12 @@ def extract_pdf_text(pdf_file):
         st.error(f"Error extracting text from PDF: {e}")
         return ""
 
-
 # Function to call Hugging Face API for question-answer evaluation
 def get_huggingface_response(question, answer):
+    if not question or not answer:
+        st.error("Question or answer is empty, unable to process.")
+        return "Error: Question or answer is empty"
+    
     try:
         # Hugging Face API URL (using a pre-trained model for question-answering)
         api_url = "https://api-inference.huggingface.co/models/deepset/roberta-base-squad2"
@@ -56,7 +59,6 @@ def get_huggingface_response(question, answer):
         st.error(f"Error in Hugging Face API call: {e}")
         return "Error during evaluation"
 
-
 # Function to generate a report PDF
 def generate_report(evaluation_results):
     pdf = FPDF()
@@ -76,7 +78,6 @@ def generate_report(evaluation_results):
 
     return pdf.output(dest='S')
 
-
 # Streamlit app layout
 st.title("Question-Answer Evaluator")
 
@@ -89,16 +90,24 @@ if question_pdf and answer_pdfs:
     st.write("Extracting text from Question PDF...")
     question_text = extract_pdf_text(question_pdf)
 
+    # Display extracted question text
+    if not question_text:
+        st.error("No text extracted from the question PDF.")
+    else:
+        st.subheader("Extracted Questions")
+        st.text_area("Extracted Question Text", question_text, height=150)
+
     # Extract text from answer PDFs
     answer_texts = []
     for file in answer_pdfs:
         st.write(f"Extracting text from Answer PDF {file.name}...")
-        answer_texts.append(extract_pdf_text(file))
+        answer_text = extract_pdf_text(file)
+        
+        if not answer_text:
+            st.warning(f"No text extracted from Answer PDF {file.name}.")
+        answer_texts.append(answer_text)
 
-    # Display extracted text (for debugging purposes)
-    st.subheader("Extracted Questions")
-    st.text_area("Extracted Question Text", question_text, height=150)
-
+    # Display extracted answer texts
     st.subheader("Extracted Answers")
     for i, answer_text in enumerate(answer_texts):
         st.text_area(f"Extracted Answer {i+1}", answer_text, height=150)
@@ -108,11 +117,15 @@ if question_pdf and answer_pdfs:
 
     evaluation_results = []
     for i, answer_text in enumerate(answer_texts):
-        st.write(f"Evaluating Answer {i+1}...") 
+        st.write(f"Evaluating Answer {i+1}...")
         progress_bar.progress((i + 1) / len(answer_texts))
 
-        # Call Hugging Face API to evaluate the answer based on the question
-        evaluation_result = get_huggingface_response(question_text, answer_text)
+        # Check if the answer text is empty before making the API call
+        if answer_text:
+            # Call Hugging Face API to evaluate the answer based on the question
+            evaluation_result = get_huggingface_response(question_text, answer_text)
+        else:
+            evaluation_result = "No valid answer to evaluate"
         
         evaluation_results.append((question_text, answer_text, evaluation_result))
         st.success(f"Answer {i+1} evaluation complete!")
