@@ -9,8 +9,8 @@ def extract_pdf_text(pdf_file):
         reader = PyPDF2.PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
-            text += page.extract_text()
-        return text
+            text += page.extract_text() or ""  # Handle None values
+        return text.strip()  # Strip any unnecessary leading/trailing whitespace
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
         return ""
@@ -57,7 +57,7 @@ def generate_report(evaluation_results):
     for question, answer, result in evaluation_results:
         pdf.ln(10)
         pdf.cell(200, 10, txt=f"Question: {question}", ln=True)
-        pdf.cell(200, 10, txt=f"Answer: {answer}", ln=True)
+        pdf.multi_cell(200, 10, txt=f"Answer: {answer}", ln=True)  # Using multi_cell for better handling of long text
         pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
 
     return pdf.output(dest='S')
@@ -82,11 +82,11 @@ if question_pdf and answer_pdfs:
 
     # Display extracted text (for debugging purposes)
     st.subheader("Extracted Questions")
-    st.text(question_text)
+    st.text_area("Extracted Question Text", question_text, height=150)
 
     st.subheader("Extracted Answers")
     for i, answer_text in enumerate(answer_texts):
-        st.text(f"Answer {i+1}: {answer_text}")
+        st.text_area(f"Extracted Answer {i+1}", answer_text, height=150)
 
     # Show a progress bar for evaluation
     progress_bar = st.progress(0)
