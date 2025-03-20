@@ -2,6 +2,7 @@ import os
 import requests
 import streamlit as st
 import PyPDF2
+import pdfplumber  # Use pdfplumber for better PDF text extraction
 from fpdf import FPDF
 from dotenv import load_dotenv
 import pytesseract
@@ -15,17 +16,16 @@ load_dotenv()
 # Load the Hugging Face API key from the environment variable
 HF_API_KEY = os.getenv("HF_API_KEY")
 
-# Function to extract text from PDF using PyPDF2
+# Function to extract text from PDF using pdfplumber (better text extraction)
 def extract_pdf_text(pdf_file):
     try:
-        # First try to extract text using PyPDF2 (for text-based PDFs)
-        reader = PyPDF2.PdfReader(pdf_file)
         text = ""
-        for page in reader.pages:
-            text += page.extract_text() or ""  # Handle None values
-        return text.strip()  # Strip any unnecessary leading/trailing whitespace
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                text += page.extract_text() or ""  # Extract text, handle None
+        return text.strip()
     except Exception as e:
-        st.error(f"Error extracting text from PDF: {e}")
+        st.error(f"Error extracting text from PDF using pdfplumber: {e}")
         return ""
 
 # Function to extract text from scanned PDF images using OCR
