@@ -1,5 +1,8 @@
-python-dotenv
 streamlit
-PyMuPDF
+fitz
 requests
 fpdf
+python-dotenv
+pytesseract
+Pillow
+google-generativeai
