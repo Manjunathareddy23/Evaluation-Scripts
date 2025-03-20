@@ -19,31 +19,41 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Function to extract text from PDF using PyMuPDF
 def extract_pdf_text(pdf_file):
-    doc = fitz.open(pdf_file)
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    return text
+    try:
+        doc = fitz.open(pdf_file)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from PDF: {e}")
+        return ""
 
 # Function to extract text from scanned PDFs using OCR
 def extract_text_with_ocr(pdf_file):
-    # Convert the first page of the PDF to an image
-    doc = fitz.open(pdf_file)
-    page = doc[0]  # Assuming we want the first page only
-    pix = page.get_pixmap()
-    img = Image.open(io.BytesIO(pix.tobytes()))
-    
-    # Perform OCR on the image to extract text
-    text = pytesseract.image_to_string(img)
-    return text
+    try:
+        # Convert the first page of the PDF to an image
+        doc = fitz.open(pdf_file)
+        page = doc[0]  # Assuming we want the first page only
+        pix = page.get_pixmap()
+        img = Image.open(io.BytesIO(pix.tobytes()))
+
+        # Perform OCR on the image to extract text
+        text = pytesseract.image_to_string(img)
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text with OCR: {e}")
+        return ""
 
 # Function to call Gemini API for answer evaluation using google.generativeai
 def get_gemini_response(input_text, pdf_content, prompt):
-    model = genai.GenerativeModel("gemini-1.5-flash")  # Use the gemini model from Google Generative AI
-    response = model.generate_content([input_text, pdf_content, prompt])
-    
-    # The response text contains the evaluation result
-    return response.text
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")  # Use the gemini model from Google Generative AI
+        response = model.generate_content([input_text, pdf_content, prompt])
+        return response.text
+    except Exception as e:
+        st.error(f"Error during Gemini API call: {e}")
+        return ""
 
 # Function to generate a report PDF
 def generate_report(evaluation_result):
