@@ -57,7 +57,11 @@ def generate_report(evaluation_results):
     for question, answer, result in evaluation_results:
         pdf.ln(10)
         pdf.cell(200, 10, txt=f"Question: {question}", ln=True)
-        pdf.multi_cell(200, 10, txt=f"Answer: {answer}", ln=True)  # Using multi_cell for better handling of long text
+        
+        # Use multi_cell to handle long text (answers), but make sure the text is not too long for a single line
+        pdf.multi_cell(0, 10, txt=f"Answer: {answer}", align='L')
+        
+        pdf.ln(5)  # Add some space between the answer and the result
         pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
 
     return pdf.output(dest='S')
