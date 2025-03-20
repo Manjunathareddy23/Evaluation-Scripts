@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 import os
 import pytesseract
 from PIL import Image
-import io
+import io 
+import google.generativeai as genai
 
 # Load environment variables from .env file
 load_dotenv()
