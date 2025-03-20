@@ -6,3 +6,5 @@ python-dotenv
 Pillow
 pytesseract
 google-generativeai
+pytesseract 
+pdf2image
