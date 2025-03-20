@@ -7,13 +7,9 @@ import os
 import pytesseract
 from PIL import Image
 import io
-import google.generativeai as genai  # Google Generative AI for Gemini integration
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Configure the Google Generative AI API with the API key
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Function to extract text from PDF using PyPDF2
 def extract_pdf_text(pdf_file):
@@ -45,14 +41,35 @@ def extract_text_with_ocr(pdf_file):
         st.error(f"Error extracting text with OCR: {e}")
         return ""
 
-# Function to call Gemini API for answer evaluation using google.generativeai
-def get_gemini_response(input_text, pdf_content, prompt):
+# Function to call GROQ API for answer evaluation using GROQ API Key
+def get_groq_response(input_text, pdf_content, prompt):
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")  # Use the gemini model from Google Generative AI
-        response = model.generate_content([input_text, pdf_content, prompt])
-        return response.text
+        api_key = os.getenv("GROQ_API_KEY")
+        endpoint = "https://api.groq.ai/v1/evaluate"  # Replace with actual GROQ endpoint if different
+        
+        # Construct the request payload (this depends on GROQ API specifications)
+        payload = {
+            "input_text": input_text,
+            "pdf_content": pdf_content,
+            "prompt": prompt
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        # Sending the request to the GROQ API
+        response = requests.post(endpoint, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            result = response.json()  # Assuming the result is in JSON format
+            return result.get('evaluation_result', "Error: No evaluation result")
+        else:
+            st.error(f"Error during GROQ API call: {response.status_code} - {response.text}")
+            return "Error during evaluation"
     except Exception as e:
-        st.error(f"Error during Gemini API call: {e}")
+        st.error(f"Error during GROQ API call: {e}")
         return "Error during evaluation"
 
 # Function to generate a report PDF
@@ -107,8 +124,8 @@ if question_pdf and answer_pdfs:
         st.write(f"Evaluating Answer {i+1}...") 
         progress_bar.progress((i + 1) / len(answer_texts))
 
-        # Call the Gemini API to evaluate the answer (replacing placeholder logic)
-        evaluation_result = get_gemini_response(question_text, answer_text, "Evaluate this answer based on the question.")
+        # Call the GROQ API to evaluate the answer (replacing placeholder logic)
+        evaluation_result = get_groq_response(question_text, answer_text, "Evaluate this answer based on the question.")
         
         if "error" in evaluation_result:
             st.error(f"Error in evaluation for Answer {i+1}: {evaluation_result}")
