@@ -7,16 +7,13 @@ from dotenv import load_dotenv
 import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
+import tempfile
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Load the Hugging Face API key from the environment variable
 HF_API_KEY = os.getenv("HF_API_KEY")
-
-# Set the path for Tesseract OCR (only necessary if it's not in your PATH)
-# For Windows, use something like:
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # Function to extract text from PDF using PyPDF2
 def extract_pdf_text(pdf_file):
@@ -32,14 +29,23 @@ def extract_pdf_text(pdf_file):
         return ""
 
 # Function to extract text from scanned PDF images using OCR
-def extract_text_from_image(pdf_file):
+def extract_text_from_image(uploaded_file):
     try:
-        # Convert PDF to images (one image per page)
-        pages = convert_from_path(pdf_file, 300)  # 300 dpi for better OCR accuracy
+        # Save the uploaded file to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(uploaded_file.read())
+            temp_file_path = temp_file.name
+
+        # Convert the PDF to images (one image per page)
+        pages = convert_from_path(temp_file_path, 300)  # 300 dpi for better OCR accuracy
         text = ""
         for page in pages:
             # Perform OCR on each page
             text += pytesseract.image_to_string(page)
+        
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+
         return text.strip()  # Strip any unnecessary whitespace
     except Exception as e:
         st.error(f"Error extracting text from PDF images: {e}")
@@ -147,25 +153,24 @@ if question_pdf and answer_pdfs:
         st.write(f"Evaluating Answer {i+1}...")
         progress_bar.progress((i + 1) / len(answer_texts))
 
-        # Check if the answer text is empty before making the API call
-        if answer_text:
+        if not answer_text.strip():
+            evaluation_result = "No valid answer to evaluate"
+        else:
             # Call Hugging Face API to evaluate the answer based on the question
             evaluation_result = get_huggingface_response(question_text, answer_text)
             if evaluation_result != "No answer found":
                 successful_evaluations += 1
-        else:
-            evaluation_result = "No valid answer to evaluate"
-        
+
         evaluation_results.append((question_text, answer_text, evaluation_result))
         st.success(f"Answer {i+1} evaluation complete!")
 
     # Calculate success rate
-    success_rate = (successful_evaluations / len(answer_texts)) * 100
+    success_rate = (successful_evaluations / len(answer_texts)) * 100 if answer_texts else 0
 
     # Generate and show the report after all evaluations
     st.write("All evaluations complete! Generating report...")
     report_pdf = generate_report(evaluation_results, success_rate)
-    
+
     # Provide download link for the report
     st.download_button(
         label="Download Evaluation Report",
