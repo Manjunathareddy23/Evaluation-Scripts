@@ -8,3 +8,4 @@ pytesseract
 google-generativeai
 pytesseract 
 pdf2image
+pdfplumber
