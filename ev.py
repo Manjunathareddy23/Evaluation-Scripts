@@ -4,6 +4,9 @@ import streamlit as st
 import PyPDF2
 from fpdf import FPDF
 from dotenv import load_dotenv
+import pytesseract
+from pdf2image import convert_from_path
+from PIL import Image
 
 # Load environment variables from .env file
 load_dotenv()
@@ -11,9 +14,14 @@ load_dotenv()
 # Load the Hugging Face API key from the environment variable
 HF_API_KEY = os.getenv("HF_API_KEY")
 
+# Set the path for Tesseract OCR (only necessary if it's not in your PATH)
+# For Windows, use something like:
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 # Function to extract text from PDF using PyPDF2
 def extract_pdf_text(pdf_file):
     try:
+        # First try to extract text using PyPDF2 (for text-based PDFs)
         reader = PyPDF2.PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
@@ -21,6 +29,20 @@ def extract_pdf_text(pdf_file):
         return text.strip()  # Strip any unnecessary leading/trailing whitespace
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
+        return ""
+
+# Function to extract text from scanned PDF images using OCR
+def extract_text_from_image(pdf_file):
+    try:
+        # Convert PDF to images (one image per page)
+        pages = convert_from_path(pdf_file, 300)  # 300 dpi for better OCR accuracy
+        text = ""
+        for page in pages:
+            # Perform OCR on each page
+            text += pytesseract.image_to_string(page)
+        return text.strip()  # Strip any unnecessary whitespace
+    except Exception as e:
+        st.error(f"Error extracting text from PDF images: {e}")
         return ""
 
 # Function to call Hugging Face API for question-answer evaluation
@@ -60,7 +82,7 @@ def get_huggingface_response(question, answer):
         return "Error during evaluation"
 
 # Function to generate a report PDF
-def generate_report(evaluation_results):
+def generate_report(evaluation_results, success_rate):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
@@ -69,12 +91,13 @@ def generate_report(evaluation_results):
     for question, answer, result in evaluation_results:
         pdf.ln(10)
         pdf.cell(200, 10, txt=f"Question: {question}", ln=True)
-        
-        # Use multi_cell to handle long text (answers), but make sure the text is not too long for a single line
         pdf.multi_cell(0, 10, txt=f"Answer: {answer}", align='L')
-        
         pdf.ln(5)  # Add some space between the answer and the result
         pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
+
+    # Add success rate to the report
+    pdf.ln(10)
+    pdf.cell(200, 10, txt=f"Success Rate: {success_rate}%", ln=True)
 
     return pdf.output(dest='S')
 
@@ -97,11 +120,13 @@ if question_pdf and answer_pdfs:
         st.subheader("Extracted Questions")
         st.text_area("Extracted Question Text", question_text, height=150)
 
-    # Extract text from answer PDFs
+    # Extract text from answer PDFs (using OCR for scanned images)
     answer_texts = []
     for file in answer_pdfs:
         st.write(f"Extracting text from Answer PDF {file.name}...")
-        answer_text = extract_pdf_text(file)
+        answer_text = extract_pdf_text(file)  # Try text extraction first
+        if not answer_text:  # If no text extracted, try OCR (image-based)
+            answer_text = extract_text_from_image(file)
         
         if not answer_text:
             st.warning(f"No text extracted from Answer PDF {file.name}.")
@@ -116,6 +141,8 @@ if question_pdf and answer_pdfs:
     progress_bar = st.progress(0)
 
     evaluation_results = []
+    successful_evaluations = 0
+
     for i, answer_text in enumerate(answer_texts):
         st.write(f"Evaluating Answer {i+1}...")
         progress_bar.progress((i + 1) / len(answer_texts))
@@ -124,15 +151,20 @@ if question_pdf and answer_pdfs:
         if answer_text:
             # Call Hugging Face API to evaluate the answer based on the question
             evaluation_result = get_huggingface_response(question_text, answer_text)
+            if evaluation_result != "No answer found":
+                successful_evaluations += 1
         else:
             evaluation_result = "No valid answer to evaluate"
         
         evaluation_results.append((question_text, answer_text, evaluation_result))
         st.success(f"Answer {i+1} evaluation complete!")
 
+    # Calculate success rate
+    success_rate = (successful_evaluations / len(answer_texts)) * 100
+
     # Generate and show the report after all evaluations
     st.write("All evaluations complete! Generating report...")
-    report_pdf = generate_report(evaluation_results)
+    report_pdf = generate_report(evaluation_results, success_rate)
     
     # Provide download link for the report
     st.download_button(
