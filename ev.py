@@ -1,58 +1,23 @@
 import streamlit as st
-import PyPDF2  # PyPDF2 for PDF text extraction
-import requests
-import json
-from io import BytesIO
+import pdfplumber  # Better PDF text extraction library
 from fpdf import FPDF
 from dotenv import load_dotenv
 import os
-import pytesseract
-from PIL import Image
-import io
-import google.generativeai as genai  # Importing google.generativeai for Gemini integration
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure the Google Generative AI API with the API key
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-# Function to extract text from PDF using PyPDF2
+# Function to extract text from PDF using pdfplumber
 def extract_pdf_text(pdf_file):
     try:
-        reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text()
-        return text
+        with pdfplumber.open(pdf_file) as pdf:
+            text = ""
+            for page in pdf.pages:
+                text += page.extract_text()
+            return text
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
-        return ""
-
-# Function to extract text from scanned PDFs using OCR
-def extract_text_with_ocr(pdf_file):
-    try:
-        # Convert the first page of the PDF to an image
-        reader = PyPDF2.PdfReader(pdf_file)
-        page = reader.pages[0]
-        pix = page.extract_text()
-        img = Image.open(io.BytesIO(pix))
-        
-        # Perform OCR on the image to extract text
-        text = pytesseract.image_to_string(img)
-        return text
-    except Exception as e:
-        st.error(f"Error extracting text with OCR: {e}")
-        return ""
-
-# Function to call Gemini API for answer evaluation using google.generativeai
-def get_gemini_response(input_text, pdf_content, prompt):
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")  # Use the gemini model from Google Generative AI
-        response = model.generate_content([input_text, pdf_content, prompt])
-        return response.text
-    except Exception as e:
-        st.error(f"Error during Gemini API call: {e}")
         return ""
 
 # Function to generate a report PDF
@@ -83,13 +48,8 @@ if question_pdf and answer_pdfs:
     st.write("Extracting text from PDFs...")
     question_text = extract_pdf_text(question_pdf)
     
-    # OCR extraction for scanned PDFs
-    ocr_enabled = st.checkbox("Enable OCR for scanned PDFs", value=False)
-    if ocr_enabled:
-        st.write("Using OCR for text extraction...")
-        answer_texts = [extract_text_with_ocr(file) for file in answer_pdfs]
-    else:
-        answer_texts = [extract_pdf_text(file) for file in answer_pdfs]
+    # Extract text from answer PDFs
+    answer_texts = [extract_pdf_text(file) for file in answer_pdfs]
 
     # Display the extracted texts (for debugging purposes)
     st.subheader("Extracted Questions")
@@ -104,16 +64,14 @@ if question_pdf and answer_pdfs:
 
     evaluation_results = []
     for i, answer_text in enumerate(answer_texts):
-        st.write(f"Evaluating Answer {i+1}...")
+        st.write(f"Evaluating Answer {i+1}...") 
         progress_bar.progress((i + 1) / len(answer_texts))
 
-        evaluation_result = get_gemini_response(question_text, answer_text, "Evaluate this answer based on the question.")
-        
-        if "error" in evaluation_result:
-            st.error(f"Error in evaluation for Answer {i+1}: {evaluation_result['error']}")
-        else:
-            evaluation_results.append((question_text, answer_text, evaluation_result))
-            st.success(f"Answer {i+1} evaluation complete!")
+        # Simple evaluation based on text similarity or placeholder response
+        evaluation_result = f"Evaluation for Answer {i+1}: [Placeholder Evaluation Logic]"
+
+        evaluation_results.append((question_text, answer_text, evaluation_result))
+        st.success(f"Answer {i+1} evaluation complete!")
 
     # Generate and show the report after all evaluations
     st.write("All evaluations complete! Generating report...")
