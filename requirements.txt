@@ -1,7 +1,8 @@
-
-google-generativeai
 streamlit
-pdfplumber
+PyPDF2
+requests
 fpdf
 python-dotenv
-requests
+Pillow
+pytesseract
+google-generativeai
