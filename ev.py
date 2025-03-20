@@ -1,8 +1,7 @@
 import os
 import requests
 import streamlit as st
-import PyPDF2
-import pdfplumber  # Use pdfplumber for better PDF text extraction
+import pdfplumber
 from fpdf import FPDF
 from dotenv import load_dotenv
 import pytesseract
@@ -28,7 +27,7 @@ def extract_pdf_text(pdf_file):
         st.error(f"Error extracting text from PDF using pdfplumber: {e}")
         return ""
 
-# Function to extract text from scanned PDF images using OCR
+# Function to extract text from scanned PDF images using OCR (pytesseract)
 def extract_text_from_image(uploaded_file):
     try:
         # Save the uploaded file to a temporary file
@@ -108,7 +107,7 @@ def generate_report(evaluation_results, success_rate):
     return pdf.output(dest='S')
 
 # Streamlit app layout
-st.title("Question-Answer Evaluator")
+st.title("AI-Powered Question-Answer Evaluator")
 
 # File upload for question and answer PDFs
 question_pdf = st.file_uploader("Upload Question PDF", type="pdf")
