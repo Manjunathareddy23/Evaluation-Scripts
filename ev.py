@@ -22,9 +22,9 @@ def get_huggingface_response(question, answer):
         api_url = "https://api-inference.huggingface.co/models/deepset/roberta-base-squad2"
         
         # Access the Hugging Face API key from secrets
-        headers = {"Authorization": f"Bearer {st.secrets['HF_API_KEY']}"}  # Use your API key stored in secrets
+        headers = {"Authorization": f"Bearer {st.secrets['HF_API_KEY']}"}  # Make sure the key is stored in secrets
 
-        # Construct the payload for the Hugging Face model
+        # Construct the payload
         payload = {
             "inputs": {
                 "question": question,
@@ -38,10 +38,78 @@ def get_huggingface_response(question, answer):
 
         if response.status_code == 200:
             # Extract and return the result (answer found by the model)
-            return result['answer']
+            return result.get('answer', "No answer found")
         else:
+            st.error(f"Error: {response.status_code} - {response.text}")
             return "Error: Unable to process the request."
 
     except Exception as e:
         st.error(f"Error in Hugging Face API call: {e}")
         return "Error during evaluation"
+
+# Function to generate a report PDF
+def generate_report(evaluation_results):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Question-Answer Evaluation Report", ln=True, align='C')
+
+    for question, answer, result in evaluation_results:
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Question: {question}", ln=True)
+        pdf.cell(200, 10, txt=f"Answer: {answer}", ln=True)
+        pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
+
+    return pdf.output(dest='S')
+
+# Streamlit app layout
+st.title("Question-Answer Evaluator")
+
+# File upload for question and answer PDFs
+question_pdf = st.file_uploader("Upload Question PDF", type="pdf")
+answer_pdfs = st.file_uploader("Upload Answer PDFs", type="pdf", accept_multiple_files=True)
+
+if question_pdf and answer_pdfs:
+    # Extract text from question PDF
+    st.write("Extracting text from Question PDF...")
+    question_text = extract_pdf_text(question_pdf)
+
+    # Extract text from answer PDFs
+    answer_texts = []
+    for file in answer_pdfs:
+        st.write(f"Extracting text from Answer PDF {file.name}...")
+        answer_texts.append(extract_pdf_text(file))
+
+    # Display extracted text (for debugging purposes)
+    st.subheader("Extracted Questions")
+    st.text(question_text)
+
+    st.subheader("Extracted Answers")
+    for i, answer_text in enumerate(answer_texts):
+        st.text(f"Answer {i+1}: {answer_text}")
+
+    # Show a progress bar for evaluation
+    progress_bar = st.progress(0)
+
+    evaluation_results = []
+    for i, answer_text in enumerate(answer_texts):
+        st.write(f"Evaluating Answer {i+1}...") 
+        progress_bar.progress((i + 1) / len(answer_texts))
+
+        # Call Hugging Face API to evaluate the answer based on the question
+        evaluation_result = get_huggingface_response(question_text, answer_text)
+        
+        evaluation_results.append((question_text, answer_text, evaluation_result))
+        st.success(f"Answer {i+1} evaluation complete!")
+
+    # Generate and show the report after all evaluations
+    st.write("All evaluations complete! Generating report...")
+    report_pdf = generate_report(evaluation_results)
+    
+    # Provide download link for the report
+    st.download_button(
+        label="Download Evaluation Report",
+        data=report_pdf,
+        file_name="evaluation_report.pdf",
+        mime="application/pdf"
+    )
