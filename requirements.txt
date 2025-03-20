@@ -1,3 +1,5 @@
+#requirements
+
 streamlit
 fitz
 requests
